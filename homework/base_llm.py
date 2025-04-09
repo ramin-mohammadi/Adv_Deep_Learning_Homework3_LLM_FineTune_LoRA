@@ -121,7 +121,7 @@ class BaseLLM:
         - decode the outputs with self.tokenizer.batch_decode
 
         Tip: You need to set self.tokenizer.padding_side = "left" to get the correct padding behavior for generation.
-             Left padding makes sure all sequences are aligned to the right (i.e. where tokens are generated).
+            Left padding makes sure all sequences are aligned to the right  (i.e. where tokens are generated).
         Tip: self.model.generate takes a lot of parameters. Here are some relevant ones:
             - max_new_tokens: The maximum number of tokens to generate. Set this to a reasonable value
                               (50 should suffice).
@@ -153,9 +153,14 @@ class BaseLLM:
         """
         Example: https://huggingface.co/docs/transformers/main/en/tasks/language_modeling#inference  -> look at Pytorch example
         """
+        
+        """
+        The core structure of batched generation is very similar to regular generation, with one exception: All sequences that go into the transformer need to be of the same length. This is achieved through padding the shorter sequences in the left (aligning all sequences on the right, where generation starts). The transformers library will take care of padding in the self.tokenizer call, simply pass in a list[str] of prompts and use padding=True and return a PyTorch tensor return_tensors="pt"
+        """
         self.tokenizer.padding_side = "left"
+        
         if num_return_sequences is None:
-            num_return_sequences = 1
+            num_return_sequences = 1 # this is so dont get error in generate()
             
         """ 
         - tokenize input prompts 
@@ -163,14 +168,94 @@ class BaseLLM:
         - In ReadMe: Generation is almost the same between unbatched and batched versions with the only difference being that self.model.generate take both input_ids (the tokenized input) and attention_mask as input. attention_mask is produced by the tokenizer indicating which inputs have been padded. Simply take entire dictionary outputted by tokenizer() and then input it into self.model.generate() as **inputs
         - The **inputs syntax is a pythonic way to unpack the dictionary into keyword arguments so it can utilize both the .input_ids and attention_mask from tokenizer() output
         - Note below inputs variable is a batch of formatted input prompts
+        
+        - return_tensors="pt" tells the tokenizer to return the tokenized output as PyTorch tensors. This is useful when working with PyTorch models, as it allows you to directly pass the tokenized inputs to the model without additional conversion.
+        - The output will include tensors for input_ids (the tokenized text) and attention_mask (indicating which tokens are padding).
+        - input_ids: A tensor containing the tokenized representation of the input text. Each number corresponds to a token ID in the tokenizer's vocabulary.
+        - attention_mask: A tensor indicating which tokens are actual input (1) and which are padding (0). This is important for models to ignore padding during processing.
+        
+        Example: if you print out the result of tokenizer()
+        {'input_ids': tensor([[15496,   11,  703,  389,  345,   30]]), 
+        'attention_mask': tensor([[1, 1, 1, 1, 1, 1]])}
+        
+        Note tokenizer() vs. tokenizer.encode()
+        Tokenizer()
+            Purpose: Tokenizes input text and returns a dictionary containing multiple components, such as input_ids, attention_mask, and optionally other fields like token_type_ids.
+            Output: A dictionary with tokenized data.
+            Use Case: When you need more than just the token IDs, such as attention masks or when working with batched inputs.
+        Tokenizer.encode()
+            Purpose: Tokenizes input text and directly returns the input_ids (a list of token IDs) without additional information like attention_mask.
+            Output: A list of token IDs.
+            Use Case: When you only need the token IDs and don't require other components like attention masks
         """
         inputs = self.tokenizer(prompts, padding=True, return_tensors="pt").to(self.device)
+        
+        """
+        do_sample: bool
+            Purpose: Determines whether the model uses sampling or greedy decoding to generate text.
+            Behavior:
+            do_sample=True: Enables sampling, where the next token is chosen probabilistically based on the model's predicted distribution. This introduces randomness and allows for more diverse outputs.
+            do_sample=False: Disables sampling and uses greedy decoding, where the token with the highest probability is always selected. This produces deterministic outputs but can lead to repetitive or less creative results.
+        temperature: float
+            Purpose: Controls the randomness of the sampling process when do_sample=True.
+            Behavior:
+            A higher temperature (e.g., 1.0 or above) increases randomness by making the probability distribution flatter. This allows the model to explore less likely tokens, resulting in more diverse and creative outputs.
+            A lower temperature (e.g., 0.1) makes the distribution sharper, favoring tokens with higher probabilities. This reduces randomness and makes the output more focused and deterministic.
+            temperature=0: Effectively disables sampling, making the output equivalent to greedy decoding (even if do_sample=True).
+            
+            Lecture 4.2:
+            More or less creative (random) writing by raising model prob to power
+            - Temperature T equivalent to multiplying logits with 1/T
+        max_new_tokens: 
+            The maximum number of tokens to generate. Set this to a reasonable value
+        num_return_sequences: 
+            The number of sequences to return. Note that this will generate a flat list of len(prompts) * num_return_sequences entries.
+        eos_token_id: 
+            The end of sequence token id. This is used to stop generation.
+            
+        You can choose the generation strategy being how the model chooses the next token to generate.
+        https://huggingface.co/docs/transformers/main/en/generation_strategies 
+        - Lecture 4.2:
+            - Top p Nucleus sampling is used everywhere (BEST sampling method)
+            - here, if do_sample=False, uses greedy decoding/sampling
+        - Greedy search is the default decoding strategy.
+        """
         outputs = self.model.generate(**inputs, 
                                       max_new_tokens=50,
                                       do_sample=temperature > 0,
                                       temperature=temperature,
                                       num_return_sequences=num_return_sequences,
                                       eos_token_id=self.tokenizer.eos_token_id).to(self.device)
+        """
+        mask out the input tokens from the generated output. Here's what it does step by step:
+
+        Explanation
+        outputs:
+            This is the tensor returned by self.model.generate(). It contains the token IDs for the generated sequences, including both the input tokens (from the prompt) and the newly generated tokens.
+        inputs["input_ids"]:
+            This is the tensor of token IDs for the input prompts, created by the tokenizer. It represents the tokenized version of the input text.
+        len(inputs["input_ids"][0]):
+            This calculates the length of the first input sequence (i.e., the number of tokens in the input prompt). This value is used to determine how many tokens in the outputs tensor correspond to the input prompt.
+        outputs[:, len(inputs["input_ids"][0]) :]:
+            This slices the outputs tensor along the second dimension (token IDs) to exclude the tokens corresponding to the input prompt. It keeps only the tokens generated by the model after the input prompt.
+            Why Is This Necessary?
+            When generating text, the model appends the generated tokens to the input tokens. If you don't remove the input tokens, the output will include both the input and the generated text. This line ensures that only the newly generated tokens are kept.
+
+        Example
+        Input Prompt:
+            prompt = "The cat sat on the"
+        Tokenized Input (inputs["input_ids"]):
+            [15496, 703, 389, 345, 262]
+        Model Output (outputs):
+            [[15496, 703, 389, 345, 262, 1234, 5678, 91011]]
+            # Includes both input tokens and generated tokens
+        After Slicing:
+            outputs = outputs[:, len(inputs["input_ids"][0]) :]
+            # Keeps only the generated tokens
+            [[1234, 5678, 91011]]
+        Final Output
+            The sliced outputs tensor is then decoded into text using the tokenizer, ensuring that the final output only contains the generated text, not the original input prompt.
+        """
         outputs = outputs[:, len(inputs["input_ids"][0]) :]
         decode = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         # the output of the decode is a flat list of len(prompts) * num_return_sequences entries

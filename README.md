@@ -201,7 +201,7 @@ Then install additional dependencies:
 pip install -r requirements.txt
 ```
 
-Test usign local grader:
+Test using local grader:
 ```bash
 python -m grader homework -vv
 ```
