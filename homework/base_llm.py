@@ -20,9 +20,9 @@ class BaseLLM:
         better if you provide a chat template. self.tokenizer.apply_chat_template can help here
         """
         # https://github.com/huggingface/smollm/tree/main/text#usage
-        messages = [
-            {"role": "user", "content": question}
-        ]
+        # messages = [
+        #     {"role": "user", "content": question}
+        # ]
         """
         Optionally can add a system message to the chat template. -> Added at beginning of message
         messages = [
@@ -64,7 +64,24 @@ class BaseLLM:
         """
         # we're not doing training here so can set add_generation_prompt=True since question input will be 
         # individual (its own message and not part of a conversation)
-        return self.tokenizer.apply_chat_template(messages, tokenize=False, add_special_tokens=False, add_generation_prompt=True).to(self.device)
+        #return self.tokenizer.apply_chat_template(messages, tokenize=False, add_special_tokens=False, add_generation_prompt=True).to(self.device)
+        
+        
+        
+        # For part 3 of assigmnet, this format_prompt() function is used bc BaseLLM is used and the benchmark() method calls answer() method which calls this method
+        messages= [
+            {"role": "system", "content": "You will perform unit conversions and in your answer, only provide the ground truth float and wrap it in <answer></answer> tags. An example is: <answer>32.459</answer>."},
+            {"role": "user", "content": "Please convert 6 mi/h into in/s."},
+            {"role": "assistant", "content": "1 mi/h = 17.6 in/s. 6 * 17.6 =<answer>105.6</answer>"},
+            {"role": "user", "content": "Could you convert 6 quart to its corresponding value in cc?"},
+            {"role": "assistant", "content": "1 quart = 946.35 cc. 6 * 946.35 =<answer>5678.118</answer>"},
+            {"role": "user", "content": "How much is 9 decades when converted to month?"},
+            {"role": "assistant", "content": "1 decade = 120 months. 9.0 * 120.0 =<answer>1080.0</answer>"},
+            {"role": "user", "content": question},
+        ]
+        # ReadMe for part3 says to not use apply_chat_template() and tell model to only provide the float and wrap it in <answer></answer> tags
+        return messages
+        
 
     def parse_answer(self, answer: str) -> float:
         """

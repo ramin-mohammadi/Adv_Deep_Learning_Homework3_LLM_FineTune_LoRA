@@ -78,6 +78,7 @@ python -m homework.cot test
 You should be able to reach 0.5 accuracy and 0.85 answer_rate without too much tuning, and a good in-context example.
 
 ## Supervised fine-tuning (25 pts)
+- (sft.py)
 
 We will now go and fine-tune SmolLM2 to answer questions directly.
 You should NOT use the chat template here, instead simply ask the model to complete a question with `<answer>{answer}</answer>`, where answer is the ground truth `float` answer.
@@ -113,16 +114,18 @@ Either write a script that moves the final checkpoint in the correct directory o
 Train your model with
 
 ```bash
-python -m homework.sft train
+!python -m homework.sft train --output_dir ./homework/sft_model
 ```
 
 and make sure it can be loaded by the grader
 
+Test SFT
 ```bash
-python -m homework.sft train
+!python -m homework.sft test ./homework/sft_model
 ```
 
 ## Rejection sampling Fine-Tuning (25 pts)
+- (rft.py)
 
 Finally, we implement a very basic RL algorithm to improve the reasoning capabilities of our LLM.
 The above SFT experiment produced straight up `<answer>...</answer>` outputs without first thinking about how to convert units.
@@ -153,6 +156,34 @@ Modify your SFT code to train on this new data of question + reasoning pairs.
 This model will likely perform better than SFT, but might need a slightly larger LoRA adapter.
 Feel free to increase the rank as long as your total submission size is below 50Mb.
 
+#### Student Suggestions for rft:
+Generate data for RFT using the command below. This might take anywhere between 30 to 60 minutes. Change the parameters if required. This uses the train.json to generate rft.json using COT Model.
+
+```bash
+!python -m homework.datagen generate --output_json rft.json --oversample 10 --temperature 0.6
+```
+
+Check if the `rft.json` file is generated with content.
+```bash
+!cat data/rft.json
+```
+
+Train the `rft.json` model using the command below.
+```bash
+!python -m homework.rft train --output_dir ./homework/rft_model
+```
+
+Test the `rft.json` model using the command below.
+```bash
+!python -m homework.rft test ./homework/rft_model
+```
+
+Before bundling assignment
+Make sure to remove all the checkpoint folders that are not required.
+```bash
+!rm -r ./homework/sft_model/checkpoint*
+!rm -r ./homework/rft_model/checkpoint*
+```
 ## Submission
 
 Once you finished the assignment, create a submission bundle using:
@@ -209,3 +240,4 @@ python -m grader homework -vv
 conda install m2-base
 ```
 -> allows us to use unix commands like ls in anaconda prompt
+
