@@ -205,3 +205,7 @@ Test using local grader:
 ```bash
 python -m grader homework -vv
 ```
+```bash
+conda install m2-base
+```
+-> allows us to use unix commands like ls in anaconda prompt

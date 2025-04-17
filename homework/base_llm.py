@@ -14,7 +14,7 @@ class BaseLLM:
         self.model = AutoModelForCausalLM.from_pretrained(checkpoint).to(device)
         self.device = device
 
-    def format_prompt(self, question: str) -> str:
+    def format_prompt(self, question: str) -> str: # used in answer()
         """
         Take a question and convert it into an input to SmolLM2. The LLM will likely answer much
         better if you provide a chat template. self.tokenizer.apply_chat_template can help here
@@ -273,7 +273,9 @@ class BaseLLM:
         """
         # Convert each question
         prompts = [self.format_prompt(q) for q in questions]
+        #print("PROMPTS:\n", prompts)
         generations = self.batched_generate(prompts)
+        #print("GENERATIONS:\n", generations)
         return [self.parse_answer(g) for g in generations]
 
 
