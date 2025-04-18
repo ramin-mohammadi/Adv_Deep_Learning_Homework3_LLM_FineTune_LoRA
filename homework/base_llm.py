@@ -2,6 +2,7 @@ from typing import overload
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+import numpy as np
 
 checkpoint = "HuggingFaceTB/SmolLM2-360M-Instruct"
 
@@ -282,7 +283,7 @@ class BaseLLM:
         # num_return_sequences represents the number of answer responses generated for each question
         if num_return_sequences is None or num_return_sequences == 1:
             return decode
-        return decode.reshape(len(prompts), num_return_sequences) 
+        return np.reshape(decode, (len(prompts), num_return_sequences)) 
         # reshape to rows as question and columns as answers for the ith question/row
 
 

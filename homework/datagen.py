@@ -5,9 +5,14 @@ import json
 def generate_dataset(output_json: str, oversample: int = 10, temperature: float = 0.6):
     #raise NotImplementedError()
     
+    # output_json passed in from command line, but expect to be ./data/rft.json
+    # Expect: !python -m homework.datagen generate_dataset --output_json ./data/rft.json --oversample 10 --temperature 0.6
+    
     trainset = Dataset("train")
-    validset = Dataset("valid")
-    model = CoTModel("HuggingFaceTB/SmolLM2-1.7B-Instruct")
+    #validset = Dataset("valid")
+    #model = CoTModel("HuggingFaceTB/SmolLM2-1.7B-Instruct")
+    model = CoTModel()
+
     
     aug_train_dataset = generate_dataset_helper(dataset=trainset, model=model, oversample=oversample, temperature=temperature)
     # aug_valid_dataset = generate_dataset_helper(dataset=validset, model=model, dataoversample=oversample, temperature=temperature)
@@ -46,7 +51,6 @@ def generate_dataset_helper(dataset: Dataset, model: CoTModel, oversample: int =
                 break  # Stop after finding the first valid response
         idx += 1
     return aug_dataset
-
 
 if __name__ == "__main__":
     from fire import Fire
