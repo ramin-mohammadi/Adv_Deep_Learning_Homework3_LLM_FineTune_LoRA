@@ -160,12 +160,12 @@ Feel free to increase the rank as long as your total submission size is below 50
 Generate data for RFT using the command below. This might take anywhere between 30 to 60 minutes. Change the parameters if required. This uses the train.json to generate rft.json using COT Model.
 
 ```bash
-!python -m homework.datagen generate --output_json rft.json --oversample 10 --temperature 0.6
+!python -m homework.datagen --output_json ./data/rft.json --oversample 10 --temperature 0.6
 ```
 
 Check if the `rft.json` file is generated with content.
 ```bash
-!cat data/rft.json
+!cat ./data/rft.json
 ```
 
 Train the `rft.json` model using the command below.
