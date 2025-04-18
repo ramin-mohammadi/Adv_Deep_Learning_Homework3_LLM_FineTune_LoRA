@@ -80,7 +80,9 @@ class BaseLLM:
             {"role": "user", "content": question},
         ]
         # ReadMe for part3 says to not use apply_chat_template() and tell model to only provide the float and wrap it in <answer></answer> tags
-        return messages
+        #return messages
+        
+        return question # possibly dont put anything here since this was intended for part 2 but cot.py has its own implemnted format_prompt() method which overrides this one
         
 
     def parse_answer(self, answer: str) -> float:

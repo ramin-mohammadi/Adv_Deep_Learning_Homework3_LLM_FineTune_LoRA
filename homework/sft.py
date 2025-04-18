@@ -54,7 +54,8 @@ def format_example(prompt: str, answer: str) -> dict[str, str]:
     # this method is called in the TokenizedDataset class and is the format_fn paramater. Look at format_fn's description
     
     # in data.py, when answers are checked, they are rounded to 3 decimal places
-    answer = str(round(float(answer), 3))
+    answer = str(round(float(answer), 3)) # round to make it easier for model to interpret and generate the answer
+    answer = "<answer>" + answer + "</answer>" # answer needs answer tags bc that is how we parse the float answer from the generation
     
     return {
         "question": prompt,
@@ -110,6 +111,7 @@ def train_model(
     model = get_peft_model(llm.model, peft_config) # llm.model is the variable that contains the model (look in BaseLLM init)
     model.enable_input_require_grads()
     model.print_trainable_parameters()
+    # Note: bc BaseLLM puts the model (.model) on the gpu, get_peft_model() will also put the model on the gpu 
     
     from transformers import TrainingArguments, Trainer
     training_args = TrainingArguments(
@@ -122,6 +124,7 @@ def train_model(
         output_dir=output_dir,
         logging_dir=output_dir,
     )
+    # TrainingArguments puts onto gpu if available by default bc use_cpu parameter is False by default, and if so, then moves onto gpu if available. And Trainer() is placed onto device TrainingArguments is on. Also, Trainer() handles internally moving the train and validation datasets to the gpu if available
     
     trainer = Trainer(
         model=model,
@@ -132,6 +135,7 @@ def train_model(
     )
     trainer.train()
     trainer.save_model(output_dir)
+    # Note to load our saved model, you will use PeftModel.from_pretrained() bc the lora adpater is a peft model 
     
     test_model(output_dir)
 
