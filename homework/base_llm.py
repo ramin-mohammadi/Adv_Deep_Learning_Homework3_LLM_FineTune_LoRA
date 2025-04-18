@@ -10,9 +10,10 @@ device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is
 
 
 class BaseLLM:
-    def __init__(self, checkpoint=checkpoint):
+    def __init__(self, checkpoint=checkpoint, torch_dtype=torch.float32):
+        # models are normally use full precision (float32) but, we can use half precision (float16 or bfloat16) to save memory
         self.tokenizer = AutoTokenizer.from_pretrained(checkpoint)
-        self.model = AutoModelForCausalLM.from_pretrained(checkpoint).to(device)
+        self.model = AutoModelForCausalLM.from_pretrained(checkpoint, torch_dtype=torch_dtype).to(device)
         self.device = device
 
     def format_prompt(self, question: str) -> str: # used in answer()

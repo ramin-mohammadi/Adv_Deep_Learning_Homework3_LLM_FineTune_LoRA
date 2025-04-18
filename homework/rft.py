@@ -1,6 +1,6 @@
 from .base_llm import BaseLLM
-from .sft import test_model, tokenize, TokenizedDataset
-from .data import Dataset
+from .sft import TokenizedDataset
+from .data import Dataset, benchmark
 
 
 def load() -> BaseLLM:
@@ -11,7 +11,9 @@ def load() -> BaseLLM:
     model_name = "rft_model"
     model_path = Path(__file__).parent / model_name
 
-    llm = BaseLLM()
+    #llm = BaseLLM()
+    # llm = BaseLLM(checkpoint="HuggingFaceTB/SmolLM2-1.7B-Instruct", torch_dtype="bfloat16")
+    llm = BaseLLM(checkpoint="HuggingFaceTB/SmolLM2-360M-Instruct", torch_dtype="bfloat16")
     llm.model = PeftModel.from_pretrained(llm.model, model_path).to(llm.device)
     llm.model.eval()
 
@@ -29,9 +31,10 @@ def format_example(prompt: str, float_answer: float, answer: str) -> dict[str, s
     # parse float using answer tags, round to 3 decimal places, then join string again with answer tags
     left=answer.split("<answer>")
     right=left[1].split("</answer>")
-    answer = left[0] + "<answer>" + str(round(float(right[0]), 3)) + "</answer>" + right[1]
+    answer = left[0] + "<answer>" + str(round(float(right[0]), 3)) + "</answer>"
     
     # answer is the generated resposne from COT so the reasoning with the float answer surrounded by answer tags
+    #print("ANSWER:\n", answer)
     
     return {
         "question": prompt,
@@ -47,7 +50,8 @@ def train_model(
     
     # Expect: !python -m homework.rft train --output_dir ./homework/rft_model
     
-    llm = BaseLLM("HuggingFaceTB/SmolLM2-1.7B-Instruct")
+    # llm = BaseLLM(checkpoint="HuggingFaceTB/SmolLM2-1.7B-Instruct", torch_dtype="bfloat16")
+    llm = BaseLLM(checkpoint="HuggingFaceTB/SmolLM2-360M-Instruct", torch_dtype="bfloat16")
     
     from peft import LoraConfig, get_peft_model, TaskType
     peft_config = LoraConfig(
@@ -89,6 +93,20 @@ def train_model(
     # Note to load our saved model, you will use PeftModel.from_pretrained() bc the lora adpater is a peft model 
     
     test_model(output_dir)
+    
+def test_model(ckpt_path: str):
+    testset = Dataset("valid")
+    #llm = BaseLLM()
+    #llm = BaseLLM(checkpoint="HuggingFaceTB/SmolLM2-1.7B-Instruct", torch_dtype="bfloat16")
+    llm = BaseLLM(checkpoint="HuggingFaceTB/SmolLM2-360M-Instruct", torch_dtype="bfloat16")
+
+    # Load the model with LoRA adapters
+    from peft import PeftModel
+
+    llm.model = PeftModel.from_pretrained(llm.model, ckpt_path).to(llm.device)
+
+    benchmark_result = benchmark(llm, testset, 100)
+    print(f"{benchmark_result.accuracy=}  {benchmark_result.answer_rate=}")
 
 
 if __name__ == "__main__":

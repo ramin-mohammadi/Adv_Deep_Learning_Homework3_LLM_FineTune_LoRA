@@ -1,17 +1,18 @@
 from .data import Dataset, is_answer_valid
 from .cot import CoTModel
 import json
+import torch
 
 def generate_dataset(output_json: str, oversample: int = 10, temperature: float = 0.6):
     #raise NotImplementedError()
     
     # output_json passed in from command line, but expect to be ./data/rft.json
-    # Expect: !python -m homework.datagen generate_dataset --output_json ./data/rft.json --oversample 10 --temperature 0.6
+    # Expect: !python -m homework.datagen --output_json ./data/rft.json --oversample 10 --temperature 0.6
     
     trainset = Dataset("train")
     #validset = Dataset("valid")
-    #model = CoTModel("HuggingFaceTB/SmolLM2-1.7B-Instruct")
-    model = CoTModel()
+    #model = CoTModel(checkpoint="HuggingFaceTB/SmolLM2-1.7B-Instruct")
+    model = CoTModel(torch_dtype=torch.bfloat16)
 
     
     aug_train_dataset = generate_dataset_helper(dataset=trainset, model=model, oversample=oversample, temperature=temperature)
